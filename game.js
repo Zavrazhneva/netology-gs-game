@@ -1,19 +1,13 @@
 'use strict';
-// по-моему это лишнее усложенение,
-// при чтении кода, натыкаешься на вызов этой функции
-// и не сразу понятно что она делает, приходится разбираться и думать :(
 function typeChecker(items, instance, errMsg) {
     let _items = items;
-    // не опускайте фигурные скобки
-    if (!Array.isArray(items)) _items = [items];
+    if (!Array.isArray(items)) {
+        _items = [items];
+    }
     _items.forEach(item => {
-        // здесь можно написать if (!item) { return; }
-        // так вложенность кода будет меньше
-        if (item) {
-            // не опускайте фигурные скобки
-            if (item instanceof instance) return;
-            throw new Error(errMsg || `Неверный тип аргумента - ${item.constructor.name}, ожидается тип ${instance.name}`)
-        }
+        if (!item) { return; }
+        if (item instanceof instance) return;
+        throw new Error(errMsg || `Неверный тип аргумента - ${item.constructor.name}, ожидается тип ${instance.name}`)
     });
 }
 
@@ -36,16 +30,11 @@ class Vector {
 }
 
 class Actor {
-    // тут лучше добавить значения по-умолчанию
-    constructor(pos, size, speed) {
+    constructor(pos = new Vector(), size = new Vector(1, 1), speed = new Vector()) {
         typeChecker([pos, size, speed], Vector);
-
-        // не опускайте аргументы,
-        // можно получить ошибку, которую сложно отловить
-        // если кто-то изменит значения по-умолчанию
-        this.pos = pos || new Vector();
-        this.size = size || new Vector(1, 1);
-        this.speed = speed || new Vector();
+        this.pos = pos;
+        this.size = size;
+        this.speed = speed;
     }
 
     get type() {
@@ -72,16 +61,10 @@ class Actor {
     }
 
     isIntersect(actor) {
-        // вторая проверка включает в себя первую
-        // сообщения, правда, будут разными,
-        // по-моему можно только вторую оставить
-        if (!actor) throw notExistError;
         typeChecker(actor, Actor);
 
-        // не опускайте фигурные скобки
-        if (actor === this) return false;
+        if (actor === this) { return false; }
 
-        // скобки мохно опустить, хотя с ними хорошо читается
         const horizontalIntersect = (actor.right > this.left) && (actor.left < this.right);
         const verticalIntersect = (actor.bottom > this.top) && (actor.top < this.bottom);
 
@@ -95,31 +78,18 @@ class Level {
         this.actors = actors;
         this.player = actors.find(actor => actor.type === 'player');
         this.height = grid.length;
-        // здесь можно использовать сокращённую форму запили стрелочной функции
-        this.width = grid.reduce((acc, string) => {
-            return Math.max(acc, string.length);
-        }, 0);
+        this.width = grid.reduce((acc, string) => Math.max(acc, string.length), 0);
         this.status = null;
         this.finishDelay = 1;
     }
 
     isFinished() {
-        // можно проверить status на неравенство null и убрать двойное отрицание
-        // (код будет чуть понятнее)
-        return !!(this.status && this.finishDelay < 0);
+        return this.status !== null && this.finishDelay < 0;
     }
 
     actorAt(actor) {
-        // см. выше
-        if (!actor) throw notExistError;
         typeChecker(actor, Actor);
-
-        // для поиска объекта в массиве можно использовать специальный метод
-        for (let act of this.actors) {
-            if (act.isIntersect(actor)) {
-                return act;
-            }
-        }
+        return this.actors.find(act => act.isIntersect(actor));
     }
 
     obstacleAt(pos, size) {
@@ -129,14 +99,13 @@ class Level {
         const top = pos.y;
         const bottom = pos.y + size.y;
 
-        // не опускайте фигурные скобки
-        if (bottom > this.height) return 'lava';
-        if (left < 0 || right > this.width || top < 0) return 'wall';
+        if (bottom > this.height) { return 'lava'; }
+        if (left < 0 || right > this.width || top < 0) { return 'wall'; }
 
-        // округлённые значения можно созранить в переменных,
-        // чтобы не округлять на каждой итерации
-        for (let x = Math.floor(left); x < right; x++) {
-            for (let y = Math.floor(top); y < bottom; y++) {
+        const xInt = Math.floor(left);
+        const yInt = Math.floor(top);
+        for (let x = xInt; x < right; x++) {
+            for (let y = yInt; y < bottom; y++) {
                 const obstacle = this.grid[y][x];
                 if (obstacle) return obstacle;
             }
@@ -145,15 +114,15 @@ class Level {
 
     removeActor(actor) {
         typeChecker(actor, Actor);
-        // если объект не будет найден в массиве,
-        // то метод отработает неправильно
-        this.actors.splice(this.actors.indexOf(actor), 1);
+        const index = this.actors.indexOf(actor);
+        if (index === -1) { return; }
+        this.actors.splice(index, 1);
     }
 
     noMoreActors(type) {
-        // есть специальный метод для определения
-        // есть ли в массиве объекты удовлетворяющие условию
-        if (type) return !this.actors.filter(actor => actor.type === type).length;
+        if (type) {
+            return !this.actors.some(actor => actor.type === type);
+        }
         return !this.actors.length;
     }
 
@@ -178,9 +147,13 @@ class Level {
 
 class LevelParser {
 
-    // лучше добавить значение по-умолчанию,
-    // чтобы не проверять дальше по коду
-    constructor(map) {
+    constructor(map = {
+        '@': Player,
+        'v': FireRain,
+        'o': Coin,
+        '=': HorizontalFireball,
+        '|': VerticalFireball,
+    }) {
         this.map = map;
         this.obstacleMap = {
             'x': 'wall',
@@ -189,13 +162,11 @@ class LevelParser {
     }
 
     actorFromSymbol(symbol) {
-        // проверка лишняя
-        if (symbol) return this.map[symbol];
+        return this.map[symbol];
     }
 
     obstacleFromSymbol(symbol) {
-        // проверка лишняя
-        if (symbol) return this.obstacleMap[symbol];
+        return this.obstacleMap[symbol];
     }
 
     createGrid(plan) {
@@ -208,14 +179,10 @@ class LevelParser {
 
         plan.forEach((string, y) => {
             string.split('').forEach((symbol, x) => {
-                // дублирование логики actorFromSymbol
-                if (typeof this.map[symbol] !== 'function') return;
-                if (!(new this.map[symbol]() instanceof Actor)) return;
-
-                // вы создаёте объект 2 раза,
-                // лучше делать это 1 раз
                 const actorConstructor = this.actorFromSymbol(symbol);
+                if (typeof actorConstructor !== 'function') return;
                 const actor = new actorConstructor(new Vector(x, y));
+                if (!(actor instanceof Actor)) return;
                 result.push(actor);
             });
 
@@ -235,7 +202,7 @@ class Fireball extends Actor {
 
     constructor(pos, speed) {
         // второй аргумент неправильный (размер огненного шара нам известен)
-        super(pos, undefined, speed);
+        super(pos, new Vector(1,1), speed);
     }
     get type() {
         return 'fireball';
@@ -285,10 +252,8 @@ class FireRain extends Fireball {
 
 class Coin extends Actor {
     constructor(pos) {
-        super(pos, new Vector(0.6, 0.6));
-        const movedPosition = this.pos.plus(new Vector(0.2, 0.1));
-        // this.pos лучше задавать через конструктор родительского класса
-        this.pos = movedPosition;
+        const movedPosition = pos.plus(new Vector(0.2, 0.1));
+        super(movedPosition, new Vector(0.6, 0.6));
         this.initPosition = movedPosition;
         this.springSpeed = 8;
         this.springDist = 0.07;
@@ -320,9 +285,8 @@ class Coin extends Actor {
 
 class Player extends Actor {
     constructor(pos) {
-        super(pos, new Vector(0.8, 1.5));
-        // this.pos лучше задавать через конструктор родительского класса
-        this.pos = this.pos.plus(new Vector(0, -0.5))
+        const newPos = pos.plus(new Vector(0, -0.5));
+        super(newPos, new Vector(0.8, 1.5));
     }
 
     get type() {
