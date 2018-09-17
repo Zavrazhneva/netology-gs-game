@@ -1,16 +1,20 @@
 'use strict';
+// про лишнее усложенение писал, если настаиваете, что так лучше - ок
 function typeChecker(items, instance, errMsg) {
     let _items = items;
     if (!Array.isArray(items)) {
         _items = [items];
     }
     _items.forEach(item => {
+        // не писать в одну строчку
         if (!item) { return; }
+        // не опускайте фигурные скобки
         if (item instanceof instance) return;
         throw new Error(errMsg || `Неверный тип аргумента - ${item.constructor.name}, ожидается тип ${instance.name}`)
     });
 }
 
+// не используется
 const notExistError = new Error(`Не передан обязательный аргумент`);
 
 class Vector {
@@ -20,6 +24,7 @@ class Vector {
     }
 
     plus(vector) {
+        // читая не код не совсем очевидно, что эта функция выбросит исключение
         typeChecker(vector, Vector, 'Можно прибавлять к вектору только вектор типа Vector');
         return new Vector(this.x + vector.x, this.y + vector.y);
     }
@@ -30,6 +35,8 @@ class Vector {
 }
 
 class Actor {
+    // лучше не опускать аргументы у конструктора Vector
+    // если кто-то поменяет их на 1, 1 то ваш код перестанет работать
     constructor(pos = new Vector(), size = new Vector(1, 1), speed = new Vector()) {
         typeChecker([pos, size, speed], Vector);
         this.pos = pos;
@@ -63,6 +70,8 @@ class Actor {
     isIntersect(actor) {
         typeChecker(actor, Actor);
 
+        // не пишите в однус трочку
+        // https://netology-university.bitbucket.io/codestyle/javascript/
         if (actor === this) { return false; }
 
         const horizontalIntersect = (actor.right > this.left) && (actor.left < this.right);
@@ -99,14 +108,19 @@ class Level {
         const top = pos.y;
         const bottom = pos.y + size.y;
 
+        // несколько строк
         if (bottom > this.height) { return 'lava'; }
+        // несколько строк
         if (left < 0 || right > this.width || top < 0) { return 'wall'; }
 
+        // это можно сделать выше
         const xInt = Math.floor(left);
         const yInt = Math.floor(top);
+        // верхние границы тоже нужно округлить
         for (let x = xInt; x < right; x++) {
             for (let y = yInt; y < bottom; y++) {
                 const obstacle = this.grid[y][x];
+                // не опускайте фигурные скобки
                 if (obstacle) return obstacle;
             }
         }
@@ -115,11 +129,13 @@ class Level {
     removeActor(actor) {
         typeChecker(actor, Actor);
         const index = this.actors.indexOf(actor);
+        // несколько строк
         if (index === -1) { return; }
         this.actors.splice(index, 1);
     }
 
     noMoreActors(type) {
+        // лишняя проверка
         if (type) {
             return !this.actors.some(actor => actor.type === type);
         }
@@ -147,6 +163,7 @@ class Level {
 
 class LevelParser {
 
+    // тут в качестве значения по-умолчанию лучше использовать пустой объект
     constructor(map = {
         '@': Player,
         'v': FireRain,
@@ -175,6 +192,7 @@ class LevelParser {
 
     createActors(plan) {
         const result = [];
+        // эту проверку можно убрать
         if (!this.map || !plan.length) return result;
 
         plan.forEach((string, y) => {
@@ -297,6 +315,7 @@ class Player extends Actor {
 loadLevels()
     .then(res => JSON.parse(res))
     .then(schemas => {
+    // форматирование (отступ должен быть больше)
     const actorDict = {
         '@': Player,
         'v': FireRain,
