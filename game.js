@@ -1,21 +1,22 @@
 'use strict';
-// про лишнее усложенение писал, если настаиваете, что так лучше - ок
-function typeChecker(items, instance, errMsg) {
+
+function checkTypeOrThrowException(items, instance, errMsg) {
     let _items = items;
     if (!Array.isArray(items)) {
         _items = [items];
     }
     _items.forEach(item => {
-        // не писать в одну строчку
-        if (!item) { return; }
-        // не опускайте фигурные скобки
-        if (item instanceof instance) return;
+        if (!item) {
+            return;
+        }
+
+        if (item instanceof instance) {
+            return;
+        }
+
         throw new Error(errMsg || `Неверный тип аргумента - ${item.constructor.name}, ожидается тип ${instance.name}`)
     });
 }
-
-// не используется
-const notExistError = new Error(`Не передан обязательный аргумент`);
 
 class Vector {
     constructor(x = 0, y = 0) {
@@ -24,8 +25,7 @@ class Vector {
     }
 
     plus(vector) {
-        // читая не код не совсем очевидно, что эта функция выбросит исключение
-        typeChecker(vector, Vector, 'Можно прибавлять к вектору только вектор типа Vector');
+        checkTypeOrThrowException(vector, Vector, 'Можно прибавлять к вектору только вектор типа Vector');
         return new Vector(this.x + vector.x, this.y + vector.y);
     }
 
@@ -35,10 +35,8 @@ class Vector {
 }
 
 class Actor {
-    // лучше не опускать аргументы у конструктора Vector
-    // если кто-то поменяет их на 1, 1 то ваш код перестанет работать
-    constructor(pos = new Vector(), size = new Vector(1, 1), speed = new Vector()) {
-        typeChecker([pos, size, speed], Vector);
+    constructor(pos = new Vector(0, 0), size = new Vector(1, 1), speed = new Vector(0, 0)) {
+        checkTypeOrThrowException([pos, size, speed], Vector);
         this.pos = pos;
         this.size = size;
         this.speed = speed;
@@ -68,11 +66,10 @@ class Actor {
     }
 
     isIntersect(actor) {
-        typeChecker(actor, Actor);
-
-        // не пишите в однус трочку
-        // https://netology-university.bitbucket.io/codestyle/javascript/
-        if (actor === this) { return false; }
+        checkTypeOrThrowException(actor, Actor);
+        if (actor === this) {
+            return false;
+        }
 
         const horizontalIntersect = (actor.right > this.left) && (actor.left < this.right);
         const verticalIntersect = (actor.bottom > this.top) && (actor.top < this.bottom);
@@ -97,49 +94,49 @@ class Level {
     }
 
     actorAt(actor) {
-        typeChecker(actor, Actor);
+        checkTypeOrThrowException(actor, Actor);
         return this.actors.find(act => act.isIntersect(actor));
     }
 
     obstacleAt(pos, size) {
-        typeChecker([pos, size], Vector);
+        checkTypeOrThrowException([pos, size], Vector);
         const left = pos.x;
         const right = pos.x + size.x;
         const top = pos.y;
         const bottom = pos.y + size.y;
-
-        // несколько строк
-        if (bottom > this.height) { return 'lava'; }
-        // несколько строк
-        if (left < 0 || right > this.width || top < 0) { return 'wall'; }
-
-        // это можно сделать выше
         const xInt = Math.floor(left);
         const yInt = Math.floor(top);
-        // верхние границы тоже нужно округлить
-        for (let x = xInt; x < right; x++) {
-            for (let y = yInt; y < bottom; y++) {
+        const rightInt = Math.floor(right);
+        const bottomInt = Math.floor(bottom);
+        if (bottom > this.height) {
+            return 'lava';
+        }
+
+        if (left < 0 || right > this.width || top < 0) {
+            return 'wall';
+        }
+
+        for (let x = xInt; x < rightInt; x++) {
+            for (let y = yInt; y < bottomInt; y++) {
                 const obstacle = this.grid[y][x];
-                // не опускайте фигурные скобки
-                if (obstacle) return obstacle;
+                if (obstacle) {
+                    return obstacle;
+                }
             }
         }
     }
 
     removeActor(actor) {
-        typeChecker(actor, Actor);
+        checkTypeOrThrowException(actor, Actor);
         const index = this.actors.indexOf(actor);
-        // несколько строк
-        if (index === -1) { return; }
+        if (index === -1) {
+            return;
+        }
         this.actors.splice(index, 1);
     }
 
     noMoreActors(type) {
-        // лишняя проверка
-        if (type) {
-            return !this.actors.some(actor => actor.type === type);
-        }
-        return !this.actors.length;
+        return !this.actors.some(actor => actor.type === type);
     }
 
     playerTouched(object, actor) {
@@ -163,14 +160,7 @@ class Level {
 
 class LevelParser {
 
-    // тут в качестве значения по-умолчанию лучше использовать пустой объект
-    constructor(map = {
-        '@': Player,
-        'v': FireRain,
-        'o': Coin,
-        '=': HorizontalFireball,
-        '|': VerticalFireball,
-    }) {
+    constructor(map = {}) {
         this.map = map;
         this.obstacleMap = {
             'x': 'wall',
@@ -192,9 +182,6 @@ class LevelParser {
 
     createActors(plan) {
         const result = [];
-        // эту проверку можно убрать
-        if (!this.map || !plan.length) return result;
-
         plan.forEach((string, y) => {
             string.split('').forEach((symbol, x) => {
                 const actorConstructor = this.actorFromSymbol(symbol);
@@ -219,9 +206,9 @@ class LevelParser {
 class Fireball extends Actor {
 
     constructor(pos, speed) {
-        // второй аргумент неправильный (размер огненного шара нам известен)
-        super(pos, new Vector(1,1), speed);
+        super(pos, new Vector(1, 1), speed);
     }
+
     get type() {
         return 'fireball';
     }
@@ -247,19 +234,19 @@ class Fireball extends Actor {
 
 class HorizontalFireball extends Fireball {
     constructor(pos) {
-        super(pos, new Vector(2,0));
+        super(pos, new Vector(2, 0));
     }
 }
 
 class VerticalFireball extends Fireball {
     constructor(pos) {
-        super(pos, new Vector(0,2));
+        super(pos, new Vector(0, 2));
     }
 }
 
 class FireRain extends Fireball {
     constructor(pos) {
-        super(pos, new Vector(0,3));
+        super(pos, new Vector(0, 3));
         this.initialPos = pos;
     }
 
@@ -275,7 +262,7 @@ class Coin extends Actor {
         this.initPosition = movedPosition;
         this.springSpeed = 8;
         this.springDist = 0.07;
-        this.spring = Math.random() * ( 2 * Math.PI - Math.PI);
+        this.spring = Math.random() * (2 * Math.PI - Math.PI);
     }
 
     get type() {
@@ -315,17 +302,16 @@ class Player extends Actor {
 loadLevels()
     .then(res => JSON.parse(res))
     .then(schemas => {
-    // форматирование (отступ должен быть больше)
-    const actorDict = {
-        '@': Player,
-        'v': FireRain,
-        'o': Coin,
-        '=': HorizontalFireball,
-        '|': VerticalFireball,
-    };
+        const actorDict = {
+            '@': Player,
+            'v': FireRain,
+            'o': Coin,
+            '=': HorizontalFireball,
+            '|': VerticalFireball,
+        };
 
-    const parser = new LevelParser(actorDict);
-    runGame(schemas, parser, DOMDisplay)
-        .then(() => console.log('Вы выиграли приз!'));
+        const parser = new LevelParser(actorDict);
+        runGame(schemas, parser, DOMDisplay)
+            .then(() => console.log('Вы выиграли приз!'));
 
-});
+    });
