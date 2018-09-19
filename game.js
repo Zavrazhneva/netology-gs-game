@@ -106,8 +106,8 @@ class Level {
         const bottom = pos.y + size.y;
         const xInt = Math.floor(left);
         const yInt = Math.floor(top);
-        const rightInt = Math.floor(right);
-        const bottomInt = Math.floor(bottom);
+        const rightInt = Math.ceil(right);
+        const bottomInt = Math.ceil(bottom);
         if (bottom > this.height) {
             return 'lava';
         }
@@ -256,7 +256,7 @@ class FireRain extends Fireball {
 }
 
 class Coin extends Actor {
-    constructor(pos) {
+    constructor(pos = new Vector(0,0)) {
         const movedPosition = pos.plus(new Vector(0.2, 0.1));
         super(movedPosition, new Vector(0.6, 0.6));
         this.initPosition = movedPosition;
@@ -289,7 +289,7 @@ class Coin extends Actor {
 }
 
 class Player extends Actor {
-    constructor(pos) {
+    constructor(pos = new Vector(0,0)) {
         const newPos = pos.plus(new Vector(0, -0.5));
         super(newPos, new Vector(0.8, 1.5));
     }
